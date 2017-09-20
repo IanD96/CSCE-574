@@ -11,12 +11,12 @@
 #include <geometry_msgs/Twist.h>
 #include <iomanip> 	//for stf::setprecision and std::fixed
 #include <math.h>
-
+/**
 class ScanDriveTurn {
 
 public:	
 	ScanDriveTurn() {
-		
+	
 		travel_dist = 0;
 		//Created the publisher objects for all three robots
 		pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);
@@ -38,14 +38,68 @@ public:
 		//getting the distance for robot travel and the time it needs to travel
 		travel_dist = msg.range_max/2; 
 	
-	
-		//sub1.shutdown();
+		ROS_INFO("move forward");
+    	ros::Time start = ros::Time::now();
+  		driveForward();
+		
 	}
 	
+
 	void posRecieved(const nav_msgs::Odometry::ConstPtr& msg) {
 		//current
 	}
-
+	
+	void driveForward(){
+		ROS_INFO_STREAM("Travel Distance: " << travel_dist);
+		ros::Rate rate(10);
+		float dist_moved = 0.0;
+		while(ros::ok() && dist_moved < travel_dist) {
+		    geometry_msgs::Twist vel_msg;
+		    //velocity controls
+		    vel_msg.linear.x = 0.2; //speed value m/s
+		    vel_msg.angular.z = 0;
+		    pub_mv.publish(vel_msg);
+		
+			dist_moved += 0.2;
+		    ros::spinOnce();
+		    rate.sleep();
+    	}
+	}
+**/
+/**	
+	void turn90Deg(const double PI, float curr_theta){
+		ros::Rate rate(10);
+		while(ros::ok() && curr_theta > -PI/4) {
+		    geometry_msgs::Twist vel_msg;
+		    //velocity controls
+		    vel_msg.linear.x = 0; //speed value m/s
+		    vel_msg.angular.z = -0.3;
+		    pub_mv.publish(vel_msg);
+		
+		    ros::spinOnce();
+		    rate.sleep();
+    	}
+	}
+**/	
+	void stopVel(ros::Publisher pub_mv){
+		ros::Rate rate(10);
+		while(ros::ok()) {
+		   	geometry_msgs::Twist vel_msg;
+		    //velocity controls
+		    vel_msg.linear.x = 0.2; //speed value m/s
+		    vel_msg.angular.z = 0;
+		    pub_mv.publish(vel_msg);
+		
+		    ros::spinOnce();
+		    rate.sleep();
+    	}
+	}
+	
+	float LaserDistance(){
+		sensor_msgs::LaserScan msg;
+		msg = ros::topic::waitForMessage("robot_0/base_scan", sensor_msgs);
+	}
+/**
 private:
 	ros::NodeHandle nh;
 	ros::Publisher pub_mv;
@@ -53,76 +107,40 @@ private:
 	ros::Subscriber sub_tm;
 	float travel_dist;
 };
+**/
+
 
 int main(int argc, char **argv) {
 	//Initialize the ROS system
 	ros::init(argc, argv, "Scanning_Driving_Turning");
 		
-	ScanDriveTurn SDTObject; 
+	ros::NodeHandle nh;
+	ros::Publisher pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);	
+		
+	//ScanDriveTurn SDTObject; 
 	
 	
 	//creating degrees variable.
 	const double PI = 3.14159265358979323846;
-	
-	//Got most of the Mobility loops done; CREATE FUNCTIONS FOR THESE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	ros::Rate rate(10);
+/**	
 	//drive forward
     ROS_INFO("move forward");
     ros::Time start = ros::Time::now();
-    while(ros::ok() && current_pose.y > -1.5) {
-        geometry_msgs::Twist vel_msg;
-        //velocity controls
-        vel_msg.linear.x = 0.2; //speed value m/s
-        vel_msg.angular.z = 0;
-        SDTObject.pub_mv.publish(vel_msg);
-    
-        ros::spinOnce();
-        rate.sleep();
-    }
+  	SDTObject.driveForward();
     
     //move turn right 90 degrees.
     ROS_INFO("turning right 90 degrees");
     ros::Time start_turn = ros::Time::now();
-    while(ros::ok() && current_pose.theta > -PI/4) {
-        geometry_msgs::Twist vel_msg;
-        //velocity controls
-        vel_msg.linear.x = 0; //speed value m/s
-        vel_msg.angular.z = -0.3;
-        SDTObject.pub_mv.publish(vel_msg);
-    
-        ros::spinOnce();
-        rate.sleep();
-    }
+    SDTObject.turn90Deg(PI, current_pose.theta);
 	
 	 //drive forward
     ROS_INFO("move forward");
     ros::Time start2 = ros::Time::now();
-    while(ros::ok() && current_pose.y > -1.5) {
-        geometry_msgs::Twist vel_msg;
-        //velocity controls
-        vel_msg.linear.x = 0.2; //speed value m/s
-        vel_msg.angular.z = 0;
-        SDTObject.pub_mv.publish(vel_msg);
-    
-        ros::spinOnce();
-        rate.sleep();
-    }
-    		
+    SDTObject.driveForward(current_pose.y);
+**/    		
 	//this is to stop the robot completely. This will be used when it has traveled 4 edges.
-	while(ros::ok()) {
-       geometry_msgs::Twist vel_msg;
-        //velocity controls
-        vel_msg.linear.x = 0.2; //speed value m/s
-        vel_msg.angular.z = 0;
-        SDTObject.pub_mv.publish(vel_msg);
-    
-        ros::spinOnce();
-        rate.sleep();
-    }
-*		
+	//stopVel();
+		
 	//Let ROS take over.
 	ros::spin();
 }
