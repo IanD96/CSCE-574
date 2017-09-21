@@ -9,119 +9,101 @@
 #include <sensor_msgs/LaserScan.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
+#include  <tf/tf.h>
 #include <iomanip> 	//for stf::setprecision and std::fixed
 #include <math.h>
-/**
-class ScanDriveTurn {
 
-public:	
-	ScanDriveTurn() {
-	
-		travel_dist = 0;
-		//Created the publisher objects for all three robots
-		pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);
-//		ros::Publisher pub1 = nh.advertise<geometry_msgs::Twist>("robot_1/cmd_vel", 1000);
-//		ros::Publisher pub2 = nh.advertise<geometry_msgs::Twist>("robot_2/cmd_vel", 1000);
-		
-		//Subscriber objects for all three robots' laser scans.
-		sub_lsr = nh.subscribe("robot_0/base_scan", 1000, &ScanDriveTurn::scanMessageRecieved, this);
-//		ros::Subscriber sub1 = nh.subscribe("robot_1/base_scan", 1000, &scanMessageRecieved);
-//		ros::Subscriber sub2 = nh.subscribe("robot_2/base_scan", 1000, &scanMessageRecieved);
 
-		//Subsscriber object of odometry for the robot 
-		sub_tm = nh.subscribe<nav_msgs::Odometry>("robot_0/odom", 1000, &ScanDriveTurn::posRecieved, this);
-	
-	}
-	
-	//Callback function for laserscans. Executed every time a robot recieves a laser scan. 
-	void scanMessageRecieved(const sensor_msgs::LaserScan& msg) {
-		//getting the distance for robot travel and the time it needs to travel
-		travel_dist = msg.range_max/2; 
-	
-		ROS_INFO("move forward");
-    	ros::Time start = ros::Time::now();
-  		driveForward();
-		
-	}
-	
 
-	void posRecieved(const nav_msgs::Odometry::ConstPtr& msg) {
+void posRecieved(const nav_msgs::Odometry::ConstPtr& msg) {
 		//current
-	}
+}
 	
-	void driveForward(){
-		ROS_INFO_STREAM("Travel Distance: " << travel_dist);
-		ros::Rate rate(10);
-		float dist_moved = 0.0;
-		while(ros::ok() && dist_moved < travel_dist) {
-		    geometry_msgs::Twist vel_msg;
-		    //velocity controls
-		    vel_msg.linear.x = 0.2; //speed value m/s
-		    vel_msg.angular.z = 0;
-		    pub_mv.publish(vel_msg);
-		
-			dist_moved += 0.2;
-		    ros::spinOnce();
-		    rate.sleep();
-    	}
-	}
-**/
+void driveForward(float travel_dist, ros::Publisher pub_mv, ros::Time start){
+	ROS_INFO_STREAM("Travel Distance: " << travel_dist);
+	
+	//find the number of seconds to reach destination distance. Then I add the starting time plus drive time to get finishing time.
+	double drv_time = travel_dist/0.2; 
+	double fin_time = drv_time + start.toSec();
+	
+	ros::Rate rate(10);
+	ros::Time curr_time;
+	while(ros::ok() && curr_time.toSec() <= fin_time) {
+		geometry_msgs::Twist vel_msg;
+		//velocity controls
+		vel_msg.linear.x = 0.2; //speed value m/s
+		vel_msg.angular.z = 0;
+		pub_mv.publish(vel_msg);
+	
+		curr_time = ros::Time::now();
+	    ros::spinOnce();
+	    rate.sleep();
+    }
+}
+
 /**	
-	void turn90Deg(const double PI, float curr_theta){
-		ros::Rate rate(10);
-		while(ros::ok() && curr_theta > -PI/4) {
-		    geometry_msgs::Twist vel_msg;
-		    //velocity controls
-		    vel_msg.linear.x = 0; //speed value m/s
-		    vel_msg.angular.z = -0.3;
-		    pub_mv.publish(vel_msg);
+void turn90Deg(const double PI, float curr_theta){
+	ros::Rate rate(10);
+	while(ros::ok() && curr_theta > -PI/4) {
+		geometry_msgs::Twist vel_msg;
+		//velocity controls
+		vel_msg.linear.x = 0; //speed value m/s
+		vel_msg.angular.z = -0.3;
+		pub_mv.publish(vel_msg);
 		
-		    ros::spinOnce();
-		    rate.sleep();
-    	}
-	}
-**/	
-	void stopVel(ros::Publisher pub_mv){
-		ros::Rate rate(10);
-		while(ros::ok()) {
-		   	geometry_msgs::Twist vel_msg;
-		    //velocity controls
-		    vel_msg.linear.x = 0.2; //speed value m/s
-		    vel_msg.angular.z = 0;
-		    pub_mv.publish(vel_msg);
-		
-		    ros::spinOnce();
-		    rate.sleep();
-    	}
-	}
-	
-	float LaserDistance(){
-		sensor_msgs::LaserScan msg;
-		msg = ros::topic::waitForMessage("robot_0/base_scan", sensor_msgs);
-	}
-/**
-private:
-	ros::NodeHandle nh;
-	ros::Publisher pub_mv;
-	ros::Subscriber sub_lsr;
-	ros::Subscriber sub_tm;
-	float travel_dist;
-};
+	    ros::spinOnce();
+	    rate.sleep();
+    }
+}
 **/
+void stopVel(ros::Publisher pub_mv){
+	ros::Rate rate(10);
+	while(ros::ok()) {
+		geometry_msgs::Twist vel_msg;
+		//velocity controls
+		vel_msg.linear.x = 0; //speed value m/s
+		vel_msg.angular.z = 0;
+		pub_mv.publish(vel_msg);
+		
+		ros::spinOnce();
+		rate.sleep();
+   	}
+}
+
+	float LaserDistance(const double PI){
+		//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
+		sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_0/base_scan");
+		
+		//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
+		float max_range = msg->range_max;
+		//for(int i = 0; i < msg->ranges.size(); i++){
+		//	if(msg->ranges[i] > max_range){
+		//		max_range = msg->ranges[i];
+		//	}
+		//}
+		float travel_dist = max_range/2;
+		return travel_dist;
+	}
 
 
 int main(int argc, char **argv) {
 	//Initialize the ROS system
 	ros::init(argc, argv, "Scanning_Driving_Turning");
-		
+	//Setting the nodehandle ofr the node	
 	ros::NodeHandle nh;
+	//publisher for publishing the robots movement
 	ros::Publisher pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);	
-		
-	//ScanDriveTurn SDTObject; 
-	
+	//subscriber for subscribing the robots odometry readings
+	ros::Subscriber sub_odom = nh.subscribe("odom", 1000, &posRecieved);
 	
 	//creating degrees variable.
 	const double PI = 3.14159265358979323846;
+	
+	float travel_dist = LaserDistance(PI);
+	ros::Time start = ros::Time::now();
+	driveForward(travel_dist, pub_mv, start);
+	
+	
 /**	
 	//drive forward
     ROS_INFO("move forward");
