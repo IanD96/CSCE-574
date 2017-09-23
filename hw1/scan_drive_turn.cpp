@@ -9,81 +9,122 @@
 #include <sensor_msgs/LaserScan.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/Pose2D.h>
 #include  <tf/tf.h>
-#include <iomanip> 	//for stf::setprecision and std::fixed
+#include <angles/angles.h>
 #include <math.h>
 
+//Have to use 9 global variables here for the current robots' position.
+double x_curr_zero = 0;
+double y_curr_zero = 0;
+double theta_curr_zero = 0;
 
 
-void posRecieved(const nav_msgs::Odometry::ConstPtr& msg) {
-		//current
+//callback function for recieving odometry messages from robot 0
+void posRecievedZero(const nav_msgs::Odometry::ConstPtr& msg) {
+	//getting the x and y positions
+    x_curr_zero = msg->pose.pose.position.x;
+    y_curr_zero = msg->pose.pose.position.y;
+    
+    // quaternion to RPY conversion
+    tf::Quaternion q(msg->pose.pose.orientation.x, msg->pose.pose.orientation.y, msg->pose.pose.orientation.z, 
+    	msg->pose.pose.orientation.w);
+    
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    
+    // angular position
+    theta_curr_zero = yaw;
 }
-	
-void driveForward(float travel_dist, ros::Publisher pub_mv, ros::Time start){
-	ROS_INFO_STREAM("Travel Distance: " << travel_dist);
-	
-	//find the number of seconds to reach destination distance. Then I add the starting time plus drive time to get finishing time.
-	double drv_time = travel_dist/0.2; 
-	double fin_time = drv_time + start.toSec();
-	
-	ros::Rate rate(10);
-	ros::Time curr_time;
-	while(ros::ok() && curr_time.toSec() <= fin_time) {
-		geometry_msgs::Twist vel_msg;
-		//velocity controls
-		vel_msg.linear.x = 0.2; //speed value m/s
-		vel_msg.angular.z = 0;
-		pub_mv.publish(vel_msg);
-	
-		curr_time = ros::Time::now();
-	    ros::spinOnce();
-	    rate.sleep();
+ 	 	
+void drive(ros::Publisher pub_mv, double move_distance, double linearSpeed, int direction)
+{
+    // Current position
+	double x = x_curr_zero;
+    double y = y_curr_zero;
+
+    // Initialize the movement command message
+    geometry_msgs::Twist msg_mv;
+    // Set the movement command linear speed for forward motion
+    msg_mv.linear.x = direction * linearSpeed;
+
+    // How fast to update the robot's movement?
+    // Set the equivalent ROS rate variable
+    ros::Rate rate(30.0);
+
+    double d = 0;
+    // Enter the loop to move the robot
+    while (d < move_distance && ros::ok()) {
+        //Publish the Twist message and sleep 1 cycle
+        pub_mv.publish(msg_mv);
+
+        ros::spinOnce();
+        rate.sleep();
+
+        // Compute the Euclidean distance from the start position
+		 d = sqrt(pow((x_curr_zero - x), 2) + pow((y_curr_zero - y), 2));		
+		
+        ROS_INFO("d: %f", d);
     }
+
+    // Stop the robot
+    msg_mv.linear.x = 0;
+    pub_mv.publish(msg_mv);
+    
+    return;
+
 }
 
-/**	
-void turn90Deg(const double PI, float curr_theta){
-	ros::Rate rate(10);
-	while(ros::ok() && curr_theta > -PI/4) {
-		geometry_msgs::Twist vel_msg;
-		//velocity controls
-		vel_msg.linear.x = 0; //speed value m/s
-		vel_msg.angular.z = -0.3;
-		pub_mv.publish(vel_msg);
-		
-	    ros::spinOnce();
-	    rate.sleep();
+void turn(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int direction) {
+    // Initialize the movement command message
+    geometry_msgs::Twist msg_mv;
+    //Set the movement command rotation speed
+    msg_mv.angular.z = direction * angularSpeed;
+
+    // How fast to update the robot's movement.
+    ros::Rate rate(30.0);
+
+    // Current angle
+    double last_angle = theta_curr_zero;
+    double angle = 0;
+
+	//I'm using greater than since it is turning right
+     while ((angle > turn_angle) && ros::ok()) {
+        //Publish the Twist message and sleep 1 cycle
+        pub_mv.publish(msg_mv);
+
+        ros::spinOnce();
+        rate.sleep();
+
+        // Compute the amount of rotation since the last loop
+        angle += angles::normalize_angle(theta_curr_zero - last_angle);
+        last_angle = theta_curr_zero;
+
+        ROS_INFO("angle: %f", angle);
     }
-}
-**/
-void stopVel(ros::Publisher pub_mv){
-	ros::Rate rate(10);
-	while(ros::ok()) {
-		geometry_msgs::Twist vel_msg;
-		//velocity controls
-		vel_msg.linear.x = 0; //speed value m/s
-		vel_msg.angular.z = 0;
-		pub_mv.publish(vel_msg);
-		
-		ros::spinOnce();
-		rate.sleep();
-   	}
-}
 
-	float LaserDistance(const double PI){
-		//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
-		sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_0/base_scan");
+    // Stop turning the robot
+    msg_mv.angular.z = 0;
+    pub_mv.publish(msg_mv);
+    
+    return;
+}
+   	
+   	
+   	
+   	
+
+
+float laserDistanceZero(){
+	//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
+	sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_0/base_scan");
 		
-		//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
-		float max_range = msg->range_max;
-		//for(int i = 0; i < msg->ranges.size(); i++){
-		//	if(msg->ranges[i] > max_range){
-		//		max_range = msg->ranges[i];
-		//	}
-		//}
-		float travel_dist = max_range/2;
-		return travel_dist;
-	}
+	//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
+	float wall_range = msg->ranges[539];
+	float travel_dist = wall_range/2;
+	return travel_dist;
+}
 
 
 int main(int argc, char **argv) {
@@ -91,40 +132,66 @@ int main(int argc, char **argv) {
 	ros::init(argc, argv, "Scanning_Driving_Turning");
 	//Setting the nodehandle ofr the node	
 	ros::NodeHandle nh;
-	//publisher for publishing the robots movement
+	//publisher for publishing the robots' movement
 	ros::Publisher pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);	
-	//subscriber for subscribing the robots odometry readings
-	ros::Subscriber sub_odom = nh.subscribe("odom", 1000, &posRecieved);
+	//subscriber for subscribing to the robots' odometry readings
+	ros::Subscriber sub_odom = nh.subscribe("robot_0/odom", 1000, &posRecievedZero);
 	
-	//creating degrees variable.
+	//creating PI variable.
 	const double PI = 3.14159265358979323846;
 	
-	float travel_dist = LaserDistance(PI);
-	ros::Time start = ros::Time::now();
-	driveForward(travel_dist, pub_mv, start);
 	
-	
-/**	
-	//drive forward
-    ROS_INFO("move forward");
-    ros::Time start = ros::Time::now();
-  	SDTObject.driveForward();
+    // Set the forward linear speed (in meters/sec).)
+    double linear_speed = 0.02;
     
-    //move turn right 90 degrees.
-    ROS_INFO("turning right 90 degrees");
-    ros::Time start_turn = ros::Time::now();
-    SDTObject.turn90Deg(PI, current_pose.theta);
-	
-	 //drive forward
-    ROS_INFO("move forward");
-    ros::Time start2 = ros::Time::now();
-    SDTObject.driveForward(current_pose.y);
-**/    		
-	//this is to stop the robot completely. This will be used when it has traveled 4 edges.
-	//stopVel();
+    // Set the rotation speed in radians/sec.
+    double angular_speed = 0.005;
+
+    // Set the rotation angle to 90 degrees (to the right) in radians.
+    double turn_angle = -1.5708;
+
+	//loop for robot 0
+	int edge_count_zero = 0;
+	while(ros::ok() && edge_count_zero < 4) {
+		// Set the travel distance in meters
+    	double travel_distance = laserDistanceZero();
+    	
+		drive(pub_mv, travel_distance, linear_speed, 1);
+  		turn(pub_mv, turn_angle, angular_speed, -1);
 		
-	//Let ROS take over.
-	ros::spin();
+		edge_count_zero++;
+	    ros::spinOnce();
+    }
+//    //loop for robot 1
+//	int edge_count_one = 0;
+//	while(ros::ok() && edge_count_one < 4) {
+//		// Set the travel distance in meters
+//    	double travel_distance = laserDistanceOne();
+//    	
+//		drive(pub_mv_1, travel_distance, linear_speed, 1);
+//  		turn(pub_mv_1, turn_angle, angular_speed, -1);
+//		
+//		edge_count_one++;
+//	    ros::spinOnce();
+//    }
+//    //loop for robot 2
+//	int edge_count_two = 0;
+//	while(ros::ok() && edge_count_two < 4) {
+//		// Set the travel distance in meters
+//    	double travel_distance = laserDistanceTwo();
+//    	
+//		drive(pub_mv_2, travel_distance, linear_speed, 1);
+//  		turn(pub_mv_2, turn_angle, angular_speed, -1);
+//		
+//		edge_count_two++;
+//	    ros::spinOnce();
+//    }
+    
+
+	if(ros::ok()){
+		ros::shutdown();
+	}
+	return 0; 
 }
 
 
