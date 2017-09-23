@@ -14,23 +14,46 @@
 #include <angles/angles.h>
 #include <math.h>
 
-//Have to use 9 global variables here for the current robots' position.
-//robot 0------------------------------
+//Have to use 12 global variables here for the current robots' position.
+//------------robot 0-----------------
+double laser_dist_zero = 0;
 double x_curr_zero = 0;
 double y_curr_zero = 0;
 double theta_curr_zero = 0;
-//robot 1------------------------------
+//------------robot 1-----------------
+double laser_dist_one = 0;
 double x_curr_one= 0;
 double y_curr_one = 0;
 double theta_curr_one = 0;
-//robot 2------------------------------
+//------------robot 2-----------------
+double laser_dist_two = 0;
 double x_curr_two = 0;
 double y_curr_two = 0;
 double theta_curr_two = 0;
 
 
 
-//callback function for recieving odometry messages from robot 0
+//subscriber callback function for the robots' laser scans
+//--------------------------------------------robot 0-------------------------------------------------------------	
+void laserRecievedZero(const sensor_msgs::LaserScan::ConstPtr& msg) {
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
+	laser_dist_zero = msg->ranges[540];
+}
+//--------------------------------------------robot 1-------------------------------------------------------------	
+void laserRecievedOne(const sensor_msgs::LaserScan::ConstPtr& msg) {
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
+	laser_dist_one = msg->ranges[540];
+}
+//--------------------------------------------robot 2-------------------------------------------------------------	
+void laserRecievedTwo(const sensor_msgs::LaserScan::ConstPtr& msg) {
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
+	laser_dist_two = msg->ranges[540];
+}
+
+
+
+//callback function for recieving odometry messages from the robots
+//----------------------------------------------------------robot 0---------------------------------------------------------------------
 void posRecievedZero(const nav_msgs::Odometry::ConstPtr& msg) {
 	//getting the x and y positions
     x_curr_zero = msg->pose.pose.position.x;
@@ -47,7 +70,7 @@ void posRecievedZero(const nav_msgs::Odometry::ConstPtr& msg) {
     // angular position
     theta_curr_zero = yaw;
 }
-//callback function for recieving odometry messages from robot 1
+//----------------------------------------------------------robot 1---------------------------------------------------------------------
 void posRecievedOne(const nav_msgs::Odometry::ConstPtr& msg) {
 	//getting the x and y positions
     x_curr_one = msg->pose.pose.position.x;
@@ -64,7 +87,7 @@ void posRecievedOne(const nav_msgs::Odometry::ConstPtr& msg) {
     // angular position
     theta_curr_one = yaw;
 }
-//callback function for recieving odometry messages from robot 2
+//----------------------------------------------------------robot 2---------------------------------------------------------------------
 void posRecievedTwo(const nav_msgs::Odometry::ConstPtr& msg) {
 	//getting the x and y positions
     x_curr_two = msg->pose.pose.position.x;
@@ -84,8 +107,8 @@ void posRecievedTwo(const nav_msgs::Odometry::ConstPtr& msg) {
 
 
 
-
-//Function for driving robot 0 forward up to half the distance between the robot and the wall in fron of it 	 	
+//Functions for driving the robots forward up to half the distance between the robot and the wall in front of it 
+//--------------------------------------------robot 0-------------------------------------------------------------	 	
 void driveZero(ros::Publisher pub_mv, double move_distance, double linearSpeed, int direction) {
     // Current position
 	double x = x_curr_zero;
@@ -98,7 +121,7 @@ void driveZero(ros::Publisher pub_mv, double move_distance, double linearSpeed, 
 
     // How fast to update the robot's movement?
     // Set the equivalent ROS rate variable
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     double d = 0;
     // Enter the loop to move the robot
@@ -122,7 +145,7 @@ void driveZero(ros::Publisher pub_mv, double move_distance, double linearSpeed, 
     return;
 
 }
-//Function for driving robot 1 forward up to half the distance between the robot and the wall in fron of it 
+//--------------------------------------------robot 1-------------------------------------------------------------
 void driveOne(ros::Publisher pub_mv, double move_distance, double linearSpeed, int direction) {
     // Current position
 	double x = x_curr_one;
@@ -135,7 +158,7 @@ void driveOne(ros::Publisher pub_mv, double move_distance, double linearSpeed, i
 
     // How fast to update the robot's movement?
     // Set the equivalent ROS rate variable
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     double d = 0;
     // Enter the loop to move the robot
@@ -159,7 +182,7 @@ void driveOne(ros::Publisher pub_mv, double move_distance, double linearSpeed, i
     return;
 
 }
-//Function for driving robot 2 forward up to half the distance between the robot and the wall in fron of it 
+//--------------------------------------------robot 2-------------------------------------------------------------
 void driveTwo(ros::Publisher pub_mv, double move_distance, double linearSpeed, int direction) {
     // Current position
 	double x = x_curr_two;
@@ -172,7 +195,7 @@ void driveTwo(ros::Publisher pub_mv, double move_distance, double linearSpeed, i
 
     // How fast to update the robot's movement?
     // Set the equivalent ROS rate variable
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     double d = 0;
     // Enter the loop to move the robot
@@ -199,8 +222,8 @@ void driveTwo(ros::Publisher pub_mv, double move_distance, double linearSpeed, i
 
 
 
-
-//Function for turning robot 0 90 degrees to the right
+//Functions for turning the robots 90 degrees to the right
+//--------------------------------------------robot 0-------------------------------------------------------------
 void turnZero(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int direction) {
     // Initialize the movement command message
     geometry_msgs::Twist msg_mv;
@@ -208,7 +231,7 @@ void turnZero(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int
     msg_mv.angular.z = direction * angularSpeed;
 
     // How fast to update the robot's movement.
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     // Current angle
     double last_angle = theta_curr_zero;
@@ -235,7 +258,7 @@ void turnZero(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int
     
     return;
 }
-//Function for turning robot 0 90 degrees to the right
+//--------------------------------------------robot 1------------------------------------------------------------
 void turnOne(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int direction) {
     // Initialize the movement command message
     geometry_msgs::Twist msg_mv;
@@ -243,7 +266,7 @@ void turnOne(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int 
     msg_mv.angular.z = direction * angularSpeed;
 
     // How fast to update the robot's movement.
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     // Current angle
     double last_angle = theta_curr_one;
@@ -270,7 +293,7 @@ void turnOne(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int 
     
     return;
 }
-//Function for turning robot 0 90 degrees to the right
+//--------------------------------------------robot 2------------------------------------------------------------
 void turnTwo(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int direction) {
     // Initialize the movement command message
     geometry_msgs::Twist msg_mv;
@@ -278,7 +301,7 @@ void turnTwo(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int 
     msg_mv.angular.z = direction * angularSpeed;
 
     // How fast to update the robot's movement.
-    ros::Rate rate(30.0);
+    ros::Rate rate(10.0);
 
     // Current angle
     double last_angle = theta_curr_two;
@@ -308,37 +331,38 @@ void turnTwo(ros::Publisher pub_mv, double turn_angle, double angularSpeed, int 
    	
    	
    	
-
-
+//These are the initial laser scan functions that use the watForMessage function to just get a single laser scan message and the unsubscribe.
+//----------------------------------------------------------robot 0---------------------------------------------------------------------
 float laserDistanceZero(){
 	//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
 	sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_0/base_scan");
 		
-	//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
-	float wall_range = msg->ranges[539];
-	float travel_dist = wall_range/2;
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
+	float wall_range = msg->ranges[540];
+	float travel_dist = wall_range;
 	return travel_dist;
 }
-
+//----------------------------------------------------------robot 1---------------------------------------------------------------------
 float laserDistanceOne(){
 	//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
 	sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_1/base_scan");
 		
-	//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
-	float wall_range = msg->ranges[539];
-	float travel_dist = wall_range/2;
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
+	float wall_range = msg->ranges[540];
+	float travel_dist = wall_range;
 	return travel_dist;
 }
-
+//----------------------------------------------------------robot 2---------------------------------------------------------------------
 float laserDistanceTwo(){
 	//I only wanted to check the laser scan once, for each time the robot was stopped and not turning/moving. 
 	sensor_msgs::LaserScanConstPtr msg = ros::topic::waitForMessage<sensor_msgs::LaserScan>("robot_2/base_scan");
 		
-	//this loop is for finding the robots laser sensor's farthest range since that will be the wall directly in fron of it.
+	//this will get the range at the center (directly in fron of) the robot. 540 would be the 0 angle of the scan.
 	float wall_range = msg->ranges[539];
-	float travel_dist = wall_range/2;
+	float travel_dist = wall_range;
 	return travel_dist;
 }
+
 
 
 
@@ -353,18 +377,24 @@ int main(int argc, char **argv) {
 	ros::Publisher pub_mv = nh.advertise<geometry_msgs::Twist>("robot_0/cmd_vel", 1000);	
 	//subscriber for subscribing to the robots' odometry readings
 	ros::Subscriber sub_odom = nh.subscribe("robot_0/odom", 1000, &posRecievedZero);
+	//subscriber for subscribing to the robots' laser sensor readings.
+	ros::Subscriber sub_lsr = nh.subscribe("robot_0/base_scan", 1000, &laserRecievedZero);
 	
 	//----------ROBOT 1-------------------------------------------------------------------------
 	//publisher for publishing the robots' movement
 	ros::Publisher pub_mv_1 = nh.advertise<geometry_msgs::Twist>("robot_1/cmd_vel", 1000);	
 	//subscriber for subscribing to the robots' odometry readings
 	ros::Subscriber sub_odom_1 = nh.subscribe("robot_1/odom", 1000, &posRecievedOne);
+	//subscriber for subscribing to the robots' laser sensor readings.
+	ros::Subscriber sub_lsr_1 = nh.subscribe("robot_1/base_scan", 1000, &laserRecievedOne);
 	
 	//----------ROBOT 2-------------------------------------------------------------------------
 	//publisher for publishing the robots' movement
 	ros::Publisher pub_mv_2 = nh.advertise<geometry_msgs::Twist>("robot_2/cmd_vel", 1000);	
 	//subscriber for subscribing to the robots' odometry readings
 	ros::Subscriber sub_odom_2 = nh.subscribe("robot_2/odom", 1000, &posRecievedTwo);
+	//subscriber for subscribing to the robots' laser sensor readings.
+	ros::Subscriber sub_lsr_2 = nh.subscribe("robot_2/base_scan", 1000, &laserRecievedTwo);
 	
 	
 	//This is the shared driving characteristics of the robots
@@ -374,28 +404,33 @@ int main(int argc, char **argv) {
     // Set the forward linear speed (in meters/sec).)
     double linear_speed = 0.02;
     // Set the rotation speed in radians/sec.
-    double angular_speed = 0.005;
+    double angular_speed = 0.012;
     // Set the rotation angle to 90 degrees (to the right) in radians.
     double turn_angle = -1.5708;
 	//------------------------------------------------------------------------	
 	
+	//Initial laser scan readings
+		laser_dist_zero = laserDistanceZero();
+		laser_dist_one = laserDistanceOne();
+		laser_dist_two = laserDistanceTwo();
+	
 	//loop for robot 0
 	int edge_count = 0;
-	while(ros::ok() && edge_count < 4) {
+	while(ros::ok() && edge_count < 4) {		
 		// Set the travel distance in meters
-    	double travel_distance_0 = laserDistanceZero();
-//    	double travel_distance_1 = laserDistanceOne();
-//    	double travel_distance_2 = laserDistanceTwo();
+    	double travel_distance_0 = laser_dist_zero/2;
+   		double travel_distance_1 = laser_dist_one/2;
+    	double travel_distance_2 = laser_dist_two/2;
     	
     	
 		driveZero(pub_mv, travel_distance_0, linear_speed, 1);
   		turnZero(pub_mv, turn_angle, angular_speed, -1);
   		
-//  		driveOne(pub_mv_1, travel_distance_1, linear_speed, 1);
-//  		turnOne(pub_mv_1, turn_angle, angular_speed, -1);
-//  		
-//  		driveTwo(pub_mv_2, travel_distance_2, linear_speed, 1);
-//  		turnTwo(pub_mv_2, turn_angle, angular_speed, -1);
+  		driveOne(pub_mv_1, travel_distance_1, linear_speed, 1);
+  		turnOne(pub_mv_1, turn_angle, angular_speed, -1);
+		
+ 		driveTwo(pub_mv_2, travel_distance_2, linear_speed, 1);
+		turnTwo(pub_mv_2, turn_angle, angular_speed, -1);
 		
 		edge_count++;
 	    ros::spinOnce();
