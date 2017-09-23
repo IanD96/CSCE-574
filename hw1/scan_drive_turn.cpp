@@ -9,7 +9,6 @@
 #include <sensor_msgs/LaserScan.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
-#include <geometry_msgs/Pose2D.h>
 #include  <tf/tf.h>
 #include <angles/angles.h>
 #include <math.h>
