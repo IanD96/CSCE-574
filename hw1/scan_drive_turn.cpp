@@ -380,24 +380,24 @@ int main(int argc, char **argv) {
 	//------------------------------------------------------------------------	
 	
 	//loop for robot 0
-	int edge_count_zero = 0;
-	while(ros::ok() && edge_count_zero < 4) {
+	int edge_count = 0;
+	while(ros::ok() && edge_count < 4) {
 		// Set the travel distance in meters
     	double travel_distance_0 = laserDistanceZero();
-    	double travel_distance_1 = laserDistanceOne();
-    	double travel_distance_2 = laserDistanceTwo();
+//    	double travel_distance_1 = laserDistanceOne();
+//    	double travel_distance_2 = laserDistanceTwo();
     	
     	
 		driveZero(pub_mv, travel_distance_0, linear_speed, 1);
   		turnZero(pub_mv, turn_angle, angular_speed, -1);
   		
-  		driveOne(pub_mv_1, travel_distance_1, linear_speed, 1);
-  		turnOne(pub_mv_1, turn_angle, angular_speed, -1);
-  		
-  		driveTwo(pub_mv_2, travel_distance_2, linear_speed, 1);
-  		turnTwo(pub_mv_2, turn_angle, angular_speed, -1);
+//  		driveOne(pub_mv_1, travel_distance_1, linear_speed, 1);
+//  		turnOne(pub_mv_1, turn_angle, angular_speed, -1);
+//  		
+//  		driveTwo(pub_mv_2, travel_distance_2, linear_speed, 1);
+//  		turnTwo(pub_mv_2, turn_angle, angular_speed, -1);
 		
-		edge_count_zero++;
+		edge_count++;
 	    ros::spinOnce();
     }
     
