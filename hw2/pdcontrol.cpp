@@ -15,7 +15,7 @@ class pdcontrol {
 	
 	public:	
 		//:::::::::::Variables to be used with the PD controller:::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-		double wall_dist;		//wanted distance from wall
+		double set_point;		//wanted distance from wall
 		double max_vel;		//the top velocity of the robot
 		double Kp; 			//proportional constant
 		double Kd;			//derivative constant
@@ -23,10 +23,9 @@ class pdcontrol {
 		double side; 				//which side of the robot is following the wall
 		double error; 				//difference between desired distance from the wall and the actual distance
 		double deriv; 				//derivative element of the controller
-		double min_dist_angle;		//the angle at which the distance from the wall was smallest
 		double front_dist;			//distance from the wall using front laser data
+		double fr_dist;				//front-right distance from wall
 		//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-		
     	//publisher for the robot
     	ros::Publisher pub_vel;
 		
@@ -34,71 +33,68 @@ class pdcontrol {
 		pdcontrol(ros::Publisher pub) {
 		
 			pub_vel = pub;
-			wall_dist = 0.55;;		//distance in meters
-			max_vel = 0.55;			//velocity in meters/sec
-			Kp = 4;
-			Kd = 4;
+			set_point = 0.6;		//distance in meters
+			max_vel = 0.4;			//velocity in meters/sec
+			Kp = 0.7; 	
+			Kd = 0.5;	
 			PI = 3.1415926535;
 			side = -1; 				//in this case it's the right wall so the side is -1
 			error = 0;				
 			deriv = 0;				
-			min_dist_angle = 0;		//this is in radians
+			front_dist = 0;
+			fr_dist = 0;
 		}
+		
 		
 		//class destructor
 		~pdcontrol() {
 			//Generic Destructor
 		}
 		
-		//function for publishing the robot's speeds
-		void pubMessage() {
-			//setting up the message
-			geometry_msgs::Twist msg;
-			
-			//this is the PD controller (which is being used for the angular velocity/ turning the robot))
-			msg.angular.z = side*(Kp*error + Kd*deriv) + (min_dist_angle + PI/2);
-			
-			//EDIT THIS STUFF FOR PERSONAL USE
-			if (front_dist < wall_dist){
-				msg.linear.x = 0;
-			}else if (front_dist < wall_dist * 2){
-				msg.linear.x = 0.5*max_vel;
-			}else if (fabs(min_dist_angle)>1.75){
-				msg.linear.x = 0.4*max_vel;
-			}else {
-				msg.linear.x = max_vel;
-			}
-			
-			pub_vel.publish(msg); 
-		}
-		
 		
 		//Subscriber Callback function for reciving the robots' laser sensor data
 		void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
-		  //the size of the robots' laser range array containg all of the ranges in a scan
-		  int size = msg->ranges.size();
+			//the size of the robots' laser range array containg all of the ranges in a scan
+			int size = msg->ranges.size();
 
-		  //Variables whith index of highest and lowest value in array.
-		  int minIndex = size*(side+1)/4;
-		  int maxIndex = size*(side+3)/4;
+			//Variables whith indexs of the rightmost laser incrament and the middle incrament(in front of robot) we only need this 				//sensor range since were following the right wall
+			int index_min = 0;			//beginning angle from the right
+			int index_max = size/2;		//angle directly in front of robot
 
-		  //This cycle goes through array and finds minimum
-		  for(int i = minIndex; i < maxIndex; i++) {
-			if (msg->ranges[i] < msg->ranges[minIndex] && msg->ranges[i] > 0.0){
-			  minIndex = i;
+			//This array cycles through the ranges and finds the index of the smallest distance
+			for(int i = index_min; i < index_max; i++) {
+				if ((msg->ranges[i] > 0.0) && (msg->ranges[i] < msg->ranges[index_min])){
+				  index_min = i;
+				}
 			}
-		  }
 
-		  //Calculation of angles from indexes and storing data to class variables.
-		  min_dist_angle = (minIndex-size/2)*msg->angle_increment;
-		  double dist_min;
-		  dist_min = msg->ranges[minIndex];
-		  front_dist = msg->ranges[size/2];
-		  deriv = (dist_min - wall_dist) - error;
-		  error = dist_min - wall_dist;
-
-		  //Invoking method for publishing message
-		  pubMessage();
+			//obtaining the angles and calculating the errors.
+			double dist_min = msg->ranges[index_min];
+			front_dist = msg->ranges[size/2];
+			fr_dist = msg->ranges[(size*1)/4];
+			deriv = (dist_min - set_point) - error;
+			error = (dist_min - set_point);
+		
+			
+		  	//setting up the message
+			geometry_msgs::Twist vel_msg;
+		
+			//this is the PD controller (which is being used for the angular velocity/turning the robot))
+			vel_msg.angular.z = side*(Kp*error + Kd*deriv);
+			
+			
+			
+			//satements that prevent the robot from crashing into the wall 
+			if ((front_dist <= set_point) || (fr_dist <= set_point*0.8)){
+				vel_msg.linear.x = 0;
+			}else if ((front_dist < set_point * 2) || (fr_dist <= (set_point*2))){
+				vel_msg.linear.x = 0.5*max_vel;
+			}else {
+				vel_msg.linear.x = max_vel;
+			}
+			
+			//publishing the new robot velocities
+			pub_vel.publish(vel_msg); 
 		}
 };
 
