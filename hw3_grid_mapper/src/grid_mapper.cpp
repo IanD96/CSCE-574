@@ -115,14 +115,49 @@ public:
     canvas = cv::Scalar(CELL_UNKNOWN);
     canvasMutex.unlock();
     
+    //added for array to handle commands and the velocity message to publish
+   // char cmd[50];
+   // geometry_msgs::Twist msg_vel;
+    
+    //std:cout << "Type a command "
+    
     while (ros::ok()) { // Keep spinning loop until user presses Ctrl+C
+    /**
       // TODO: remove following demo code and make robot move around the environment
       plot(x, y, rand() % 255); // Demo code: plot robot's current position on canvas
       plotImg(0, 0, CELL_OCCUPIED); // Demo code: plot different colors at 4 canvas corners
       plotImg(0, canvas.rows-1, CELL_UNKNOWN);
       plotImg(canvas.cols-1, 0, CELL_FREE);
       plotImg(canvas.cols-1, canvas.rows-1, CELL_ROBOT);
+    
+      //:::::::::::::::::::My code to drive the robot manually using keyboard:::::::::::::::::::::::
+	  std::cin.getline(cmd, 50);
+	  if(cmd[0] != 'w' && cmd[0] != 'a' && cmd[0] != 'd' && cmd[0] != 's'){
+	  	std::cout << "unknown command:" << cmd << "\n";
+	  	continue;
+	  }
+	  
+	  
+	  if(cmd[0] == 'w'){
+	  	msg_vel.linear.x = 0.25;
+	  }else if(cmd[0] == 'a'){
+	  	msg_vel.angular.z = 0.75;
+	  	//msg_vel.linear.x = 0.25;
+	  }else if(cmd[0] == 'd'){
+	  	msg_vel.angular.z = -0.75;
+	  	//msg_vel.linear.x = 0.25;
+	  }else if(cmd[0] == 's'){
+	  	msg_vel.linear.x = -0.25;
+	  }else{
+	  	msg_vel.angular.z = 0.0;
+	  	msg_vel.linear.x = 0.0;
+	  }       	
       
+      commandPub.publish(msg_vel);
+      //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+    **/
+    	
+    
       // NOTE: DO NOT REMOVE CODE BELOW THIS LINE
       cv::imshow("Occupancy Grid Canvas", canvas);
       ros::spinOnce(); // Need to call this function often to allow ROS to process incoming messages
