@@ -20,7 +20,7 @@ public:
   // this ROS node to the simulated robot's pose, velocity control,
   // and laser topics
   GridMapper(ros::NodeHandle& nh, int width, int height) :
-      canvas(height, width, CV_8UC1) {
+    canvas(height, width, CV_8UC1) {
     // Initialize random time generator
     srand(time(NULL));
 
@@ -45,6 +45,7 @@ public:
     // Create resizeable named window
     cv::namedWindow("Occupancy Grid Canvas", \
       CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
+      
   };
   
   
@@ -86,12 +87,59 @@ public:
     commandPub.publish(msg);
   };
 
-
+  //using Bresenham's line drawing algorithm for drawing free space
+  void line(double x0, double y0, double x1, double y1){
+  	double delta_x = x1 - x0;
+  	double delta_y = y1 - y0;
+  	
+  	double delta_err;
+  	if(delta_x == 0) delta_err = 0; //when line is vertical
+  	else delta_err = abs(delta_y/delta_x); //when line isn't vertical
+  	
+  	double error = 0.0;  //No error at start
+  	int yc = y0;
+  	for(int xc = x0; xc < x1; xc++){
+  		plot(xc, yc, CELL_FREE);
+  		error = error + delta_err;
+  		while (error >= 0.5){
+  			yc = yc + sin(delta_y) * 1;
+  			error = error - 1.0;
+  		}
+  	}
+  	
+  }
   // Process incoming laser scan message
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
-    // TODO: parse laser data and update occupancy grid canvas
-    //       (use CELL_OCCUPIED, CELL_UNKNOWN, CELL_FREE, and CELL_ROBOT values)
-    // (see http://www.ros.org/doc/api/sensor_msgs/html/msg/LaserScan.html)
+   	int size = msg->ranges.size();
+   	
+   	for(int i = 0; i < size; i++){
+   		int angle = (i * msg->angle_increment);	//angle in radians of current laser range
+   		
+   		double xDist = 0.0;
+   		double yDist = 0.0;
+   		xDist = x + round(msg->ranges[i] * cos(angle));
+   		yDist = y + round(msg->ranges[i] * sin(angle));
+/**   		if((angle < 0.785398) || (angle > 3.92699)){	//determining if the obstacle is behind the robot's 180 fov
+  			xDist = x - (msg->ranges[i] * cos(angle));
+  			yDist = y - (msg->ranges[i] * sin(angle));
+  		}else{
+   		xDist = x + round(msg->ranges[i] * cos(angle));
+   		yDist = y + round(msg->ranges[i] * sin(angle));
+  		}
+**/  		
+  		
+   		if(msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min){
+   			 		plot(xDist, yDist, CELL_OCCUPIED);
+   		}
+   		
+   		
+   		//line(x, y, xDist, yDist);
+   		
+   		
+   	}
+   	//ROS_INFO("farthest distance on laser: %f", msg->range_max);
+   	plot(x, y, CELL_ROBOT);
+    
   };
   
   
@@ -115,58 +163,54 @@ public:
     canvas = cv::Scalar(CELL_UNKNOWN);
     canvasMutex.unlock();
     
-    //added for array to handle commands and the velocity message to publish
-   // char cmd[50];
-   // geometry_msgs::Twist msg_vel;
-    
-    //std:cout << "Type a command "
-    
     while (ros::ok()) { // Keep spinning loop until user presses Ctrl+C
-    /**
-      // TODO: remove following demo code and make robot move around the environment
+
+  /**    // TODO: remove following demo code and make robot move around the environment
       plot(x, y, rand() % 255); // Demo code: plot robot's current position on canvas
       plotImg(0, 0, CELL_OCCUPIED); // Demo code: plot different colors at 4 canvas corners
       plotImg(0, canvas.rows-1, CELL_UNKNOWN);
       plotImg(canvas.cols-1, 0, CELL_FREE);
       plotImg(canvas.cols-1, canvas.rows-1, CELL_ROBOT);
-    
-      //:::::::::::::::::::My code to drive the robot manually using keyboard:::::::::::::::::::::::
-	  std::cin.getline(cmd, 50);
-	  if(cmd[0] != 'w' && cmd[0] != 'a' && cmd[0] != 'd' && cmd[0] != 's'){
-	  	std::cout << "unknown command:" << cmd << "\n";
-	  	continue;
-	  }
 	  
+  **/  
+	
+	  //:::::::::::::::::::My code to drive the robot manually using keyboard::::::::::::::::::::::::::::::::::::::::::::::::::::
+	  key = cv::waitKey(1000/SPIN_RATE_HZ); // Obtain keypress from user; wait at most N milliseconds
 	  
-	  if(cmd[0] == 'w'){
-	  	msg_vel.linear.x = 0.25;
-	  }else if(cmd[0] == 'a'){
-	  	msg_vel.angular.z = 0.75;
-	  	//msg_vel.linear.x = 0.25;
-	  }else if(cmd[0] == 'd'){
-	  	msg_vel.angular.z = -0.75;
-	  	//msg_vel.linear.x = 0.25;
-	  }else if(cmd[0] == 's'){
-	  	msg_vel.linear.x = -0.25;
-	  }else{
-	  	msg_vel.angular.z = 0.0;
-	  	msg_vel.linear.x = 0.0;
-	  }       	
+      if(key == 'x' || key == 'X'){	//exiting program
+
+        break;
+
+      }else if (key == 'w'){		//driving forward
       
-      commandPub.publish(msg_vel);
-      //::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
-    **/
-    	
-    
+      	move(FORWARD_SPEED_MPS, 0.0);
+      	
+      }else if (key == 'a'){		//turning left
+      
+      	move(0.0, ROTATE_SPEED_RADPS);
+      	
+      }else if (key == 'd'){		//turning right
+      
+      	move(0.0, -ROTATE_SPEED_RADPS);
+      	
+      }else if (key == 's'){		//moving backwards
+      
+      	move(-FORWARD_SPEED_MPS, 0);
+      	
+      }else if (key == ' ') {		//taking a snapshot of the occupancy grid
+
+        saveSnapshot();
+
+      }else{						//stopping all movement
+      	move(0.0, 0.0);
+      }      	
+      
+      //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
       // NOTE: DO NOT REMOVE CODE BELOW THIS LINE
       cv::imshow("Occupancy Grid Canvas", canvas);
       ros::spinOnce(); // Need to call this function often to allow ROS to process incoming messages
-      key = cv::waitKey(1000/SPIN_RATE_HZ); // Obtain keypress from user; wait at most N milliseconds
-      if (key == 'x' || key == 'X') {
-        break;
-      } else if (key == ' ') {
-        saveSnapshot();
-      }
+      
     }
     
     ros::shutdown(); // Ensure that this ROS node shuts down properly
