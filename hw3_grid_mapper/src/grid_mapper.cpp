@@ -113,30 +113,19 @@ public:
    	int size = msg->ranges.size();
    	
    	for(int i = 0; i < size; i++){
-   		int angle = (i * msg->angle_increment);	//angle in radians of current laser range
-   		
-   		double xDist = 0.0;
-   		double yDist = 0.0;
-   		xDist = x + round(msg->ranges[i] * cos(angle));
-   		yDist = y + round(msg->ranges[i] * sin(angle));
-/**   		if((angle < 0.785398) || (angle > 3.92699)){	//determining if the obstacle is behind the robot's 180 fov
-  			xDist = x - (msg->ranges[i] * cos(angle));
-  			yDist = y - (msg->ranges[i] * sin(angle));
-  		}else{
-   		xDist = x + round(msg->ranges[i] * cos(angle));
-   		yDist = y + round(msg->ranges[i] * sin(angle));
-  		}
-**/  		
-  		
-   		if(msg->ranges[i] < msg->range_max && msg->ranges[i] > msg->range_min){
+		double range = msg->ranges[i];
+		double angle = msg->angle_min + (i * msg->angle_increment);
+		
+		double xDist = range*cos(angle);
+		double yDist = range*sin(angle);
+		
+		if(msg->ranges[i] <= msg->range_max){
    			 		plot(xDist, yDist, CELL_OCCUPIED);
-   		}
+   		}		
    		
-   		
-   		//line(x, y, xDist, yDist);
-   		
-   		
+   		line(x, y, xDist, yDist);	
    	}
+  	
    	//ROS_INFO("farthest distance on laser: %f", msg->range_max);
    	plot(x, y, CELL_ROBOT);
     
