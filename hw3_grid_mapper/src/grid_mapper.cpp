@@ -9,6 +9,7 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <tf/transform_listener.h>
+#include <math.h>
 
 
 using namespace boost::posix_time;
@@ -108,6 +109,22 @@ public:
   	}
   	
   }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  //PLOTTING OBSTACLES IS NOT WORKING!!!
+  
+  
+  
+  
   // Process incoming laser scan message
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
    	int size = msg->ranges.size();
@@ -116,20 +133,35 @@ public:
 		double range = msg->ranges[i];
 		double angle = msg->angle_min + (i * msg->angle_increment);
 		
-		double xDist = range*cos(angle);
-		double yDist = range*sin(angle);
+		double xObst = range*cos(angle);
+		double yObst = range*sin(angle);
 		
-		if(msg->ranges[i] <= msg->range_max){
-   			 		plot(xDist, yDist, CELL_OCCUPIED);
-   		}		
+		//plotting the obstacles on the grid
+		if(msg->ranges[i] < msg->range_max){
+   			 plot(xObst, yObst, CELL_OCCUPIED);	 
+   		}
    		
-   		line(x, y, xDist, yDist);	
+   		//line(x, y, xObst, yObst);
    	}
   	
-   	//ROS_INFO("farthest distance on laser: %f", msg->range_max);
    	plot(x, y, CELL_ROBOT);
     
   };
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
   
   
   // Process incoming ground truth robot pose message
@@ -152,18 +184,10 @@ public:
     canvas = cv::Scalar(CELL_UNKNOWN);
     canvasMutex.unlock();
     
-    while (ros::ok()) { // Keep spinning loop until user presses Ctrl+C
+    while (ros::ok()) { // Keep spinning loop until user presses Ctrl+C	
+    
+//:::::::::::::::::::My code to drive the robot manually using keyboard::::::::::::::::::::::::::::::::::::::::::::::::::::
 
-  /**    // TODO: remove following demo code and make robot move around the environment
-      plot(x, y, rand() % 255); // Demo code: plot robot's current position on canvas
-      plotImg(0, 0, CELL_OCCUPIED); // Demo code: plot different colors at 4 canvas corners
-      plotImg(0, canvas.rows-1, CELL_UNKNOWN);
-      plotImg(canvas.cols-1, 0, CELL_FREE);
-      plotImg(canvas.cols-1, canvas.rows-1, CELL_ROBOT);
-	  
-  **/  
-	
-	  //:::::::::::::::::::My code to drive the robot manually using keyboard::::::::::::::::::::::::::::::::::::::::::::::::::::
 	  key = cv::waitKey(1000/SPIN_RATE_HZ); // Obtain keypress from user; wait at most N milliseconds
 	  
       if(key == 'x' || key == 'X'){	//exiting program
@@ -194,7 +218,7 @@ public:
       	move(0.0, 0.0);
       }      	
       
-      //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+//:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
       // NOTE: DO NOT REMOVE CODE BELOW THIS LINE
       cv::imshow("Occupancy Grid Canvas", canvas);
