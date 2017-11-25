@@ -45,7 +45,7 @@ public:
       
     // Create resizeable named window
     cv::namedWindow("Occupancy Grid Canvas", \
-      CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED);
+      CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED); 
       
   };
   
@@ -110,31 +110,23 @@ public:
   	
   }
   
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  //PLOTTING OBSTACLES IS NOT WORKING!!!
-  
-  
-  
-  
   // Process incoming laser scan message
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
+   	
    	int size = msg->ranges.size();
    	
    	for(int i = 0; i < size; i++){
 		double range = msg->ranges[i];
 		double angle = msg->angle_min + (i * msg->angle_increment);
 		
-		double xObst = range*cos(angle);
-		double yObst = range*sin(angle);
+		double x0 = range*cos(angle);
+		double y0 = range*sin(angle);
+		
+		//double xNew = x0*cos(heading) - y0*sin(heading);
+		//double yNew = x0*sin(heading) + y0*cos(heading);
+		
+		double xObst = x + x0;
+		double yObst = y + y0;
 		
 		//plotting the obstacles on the grid
 		if(msg->ranges[i] < msg->range_max){
@@ -144,24 +136,10 @@ public:
    		//line(x, y, xObst, yObst);
    	}
   	
+  	
    	plot(x, y, CELL_ROBOT);
     
   };
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
   
   
   // Process incoming ground truth robot pose message
@@ -245,7 +223,7 @@ protected:
   ros::Publisher commandPub; // Publisher to the current robot's velocity command topic
   ros::Subscriber laserSub; // Subscriber to the current robot's laser scan topic
   ros::Subscriber poseSub; // Subscriber to the current robot's ground truth pose topic
-
+ 
   double x; // in simulated Stage units, + = East/right
   double y; // in simulated Stage units, + = North/up
   double heading; // in radians, 0 = East (+x dir.), pi/2 = North (+y dir.)
