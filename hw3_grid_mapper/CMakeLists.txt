@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   visualization_msgs 
   message_filters
   sensor_msgs
+  laser_geometry
 )
 
 

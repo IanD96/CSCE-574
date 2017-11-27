@@ -9,7 +9,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <tf/transform_listener.h>
-#include <math.h>
+#include <sensor_msgs/PointCloud.h>
+#include <laser_geometry/laser_geometry.h>
 
 
 using namespace boost::posix_time;
@@ -89,56 +90,97 @@ public:
   };
 
   //using Bresenham's line drawing algorithm for drawing free space
+  //this considers all of the octants for possible slopes
   void line(double x0, double y0, double x1, double y1){
-  	double delta_x = x1 - x0;
-  	double delta_y = y1 - y0;
-  	
-  	double delta_err;
-  	if(delta_x == 0) delta_err = 0; //when line is vertical
-  	else delta_err = abs(delta_y/delta_x); //when line isn't vertical
-  	
-  	double error = 0.0;  //No error at start
-  	int yc = y0;
-  	for(int xc = x0; xc < x1; xc++){
-  		plot(xc, yc, CELL_FREE);
-  		error = error + delta_err;
-  		while (error >= 0.5){
-  			yc = yc + sin(delta_y) * 1;
-  			error = error - 1.0;
-  		}
-  	}
-  	
-  }
+  	int tempX,tempY,dx,dy,dx0,dy0,px,py,xe,ye;
+	dx=x1-x0;
+	dy=y1-y0;
+	dx0=fabs(dx);
+	dy0=fabs(dy);
+	px=2*dy0-dx0;
+	py=2*dx0-dy0;
+	if(dy0<=dx0){
+	  	if(dx>=0){
+			tempX = x0;
+		   	tempY = y0;
+		   	xe=x1;
+	  	}else{
+			tempX = x1;
+		   	tempY = y1;
+		   	xe=x0;
+	  	}
+	  	plot(tempX, tempY, CELL_FREE);  
+		for(int i=0; tempX<xe;i++){
+		   tempX = tempX + 1;
+		   if(px<0){
+		 		px=px+2*dy0;
+		   }else{
+				if((dx<0 && dy<0) || (dx>0 && dy>0)){
+				 	tempY = tempY + 1;
+				}else{
+				 	tempY =tempY - 1;
+				}
+		   		px=px+2*(dy0-dx0);
+		   }
+		   plot(tempX, tempY, CELL_FREE);
+	  	}
+	 }else{
+	  	if(dy>=0){
+	   		tempX = x0;
+	   		tempY = y0;
+	   		ye=y1;
+	 	}else{
+	   		tempX = x1;
+	   		tempY = y1;
+	   		ye=y0;
+	 	}
+	 	plot(tempX, tempY ,CELL_FREE);
+	 	for(int i=0;tempY < ye;i++){
+	 		tempY = tempY + 1;
+	   		if(py<=0){
+				py=py+2*dx0;
+	   		}else{
+				if((dx<0 && dy<0) || (dx>0 && dy>0)){
+		 			tempX = tempX + 1;
+				}else{
+		 			tempX = tempX - 1;
+				}
+				py=py+2*(dx0-dy0);
+	   		}
+	   		plot(tempX,tempY,CELL_FREE);
+	 	}
+  	 }
+  };
   
   // Process incoming laser scan message
   void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg) {
    	
-   	int size = msg->ranges.size();
+   	//creating a point cloud based on the data from the laser scan message
+   	projection.projectLaser(*msg, ptcld);
    	
-   	for(int i = 0; i < size; i++){
-		double range = msg->ranges[i];
-		double angle = msg->angle_min + (i * msg->angle_increment);
-		
-		double x0 = range*cos(angle);
-		double y0 = range*sin(angle);
-		
-		//double xNew = x0*cos(heading) - y0*sin(heading);
-		//double yNew = x0*sin(heading) + y0*cos(heading);
-		
-		double xObst = x + x0;
-		double yObst = y + y0;
-		
-		//plotting the obstacles on the grid
-		if(msg->ranges[i] < msg->range_max){
-   			 plot(xObst, yObst, CELL_OCCUPIED);	 
-   		}
+   	for (int i = 0; i < ptcld.points.size(); i++) {
+   		//obtaining x and y points for the coordinate frame from the point cloud
+   		double xTemp = -ptcld.points[i].y;
+   		double yTemp = ptcld.points[i].x;
    		
-   		//line(x, y, xObst, yObst);
+   		//combines the temporary points and asjusts for the robot's heading
+   		double xHead = (xTemp * cos(heading)) - (yTemp * sin(heading));
+   		double yHead = (yTemp * cos(heading)) + (xTemp * sin(heading));
+   		
+   		//creates the new points of the obstacle on the robots coordinate frame
+   		double xObst = x + xHead;
+   		double yObst = y + yHead;
+   		
+   		//performing the plotting of the free space line and the obstacle
+   		if(msg->ranges[i] < msg->range_max){
+   			line(x * 10, y * 10, xObst * 10, yObst * 10);
+   			plot(xObst * 10, yObst * 10, CELL_OCCUPIED);
+   		}
    	}
-  	
-  	
-   	plot(x, y, CELL_ROBOT);
-    
+   	
+   	//plot the robot's path 
+    plot(x * 10, y * 10, CELL_ROBOT);   
+      
   };
   
   
@@ -194,7 +236,7 @@ public:
 
       }else{						//stopping all movement
       	move(0.0, 0.0);
-      }      	
+      }   	
       
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
@@ -223,6 +265,11 @@ protected:
   ros::Publisher commandPub; // Publisher to the current robot's velocity command topic
   ros::Subscriber laserSub; // Subscriber to the current robot's laser scan topic
   ros::Subscriber poseSub; // Subscriber to the current robot's ground truth pose topic
+  
+  //my code for turning laser scans into point clouds
+  laser_geometry::LaserProjection projection;
+  sensor_msgs::PointCloud ptcld;
+  
  
   double x; // in simulated Stage units, + = East/right
   double y; // in simulated Stage units, + = North/up
