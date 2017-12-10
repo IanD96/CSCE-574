@@ -11,6 +11,7 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/PointCloud.h>
 #include <laser_geometry/laser_geometry.h>
+#include <time.h>
 
 
 using namespace boost::posix_time;
@@ -30,25 +31,26 @@ public:
     // velocity command topic (the second argument indicates that
     // if multiple command messages are in the queue to be sent,
     // only the last command will be sent)
-    commandPub = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
     commandPub = nh.advertise<geometry_msgs::Twist>("/mobile_base/commands/velocity", 1);
 
     // Subscribe to the current simulated robot's laser scan topic and
     // tell ROS to call this->laserCallback() whenever a new message
     // is published on that topic
-    laserSub = nh.subscribe("base_scan", 1, \
+    laserSub = nh.subscribe("/scan", 1, \
       &GridMapper::laserCallback, this);
     
     // Subscribe to the current simulated robot' ground truth pose topic
     // and tell ROS to call this->poseCallback(...) whenever a new
     // message is published on that topic
-    poseSub = nh.subscribe("base_pose_ground_truth", 1, \
+    poseSub = nh.subscribe("/odom", 1, \
       &GridMapper::poseCallback, this);
       
     // Create resizeable named window
     cv::namedWindow("Occupancy Grid Canvas", \
       CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED); 
-    
+      
+      //the timer performs the callback function for printing the occupancy grid to an img file every 30 sec
+    timeGrid = nh.createWallTimer(ros::WallDuration(30.0), &GridMapper::printCallback, this);
   };
   
   
@@ -92,7 +94,12 @@ public:
     msg.angular.z = angularVelRadPS;
     commandPub.publish(msg);
   };
-  
+
+  //Callback function for printing the canvas to an img file every 30 sec.
+  void printCallback(const ros::WallTimerEvent& event) {
+  	saveSnapshot();
+  }
+
   //using Bresenham's line drawing algorithm for drawing free space
   //this considers all of the octants for possible slopes
   void line(double x0, double y0, double x1, double y1){
@@ -208,12 +215,10 @@ public:
     canvas = cv::Scalar(CELL_UNKNOWN);
     canvasMutex.unlock();
     
-    
-    
     while (ros::ok()) { // Keep spinning loop until user presses Ctrl+C	
-    
+        
 //:::::::::::::::::::My code to drive the robot manually using keyboard::::::::::::::::::::::::::::::::::::::::::::::::::::
-
+/**
 	  key = cv::waitKey(1000/SPIN_RATE_HZ); // Obtain keypress from user; wait at most N milliseconds
 	  
       if(key == 'x' || key == 'X'){	//exiting program
@@ -243,7 +248,7 @@ public:
       }else{						//stopping all movement
       	move(0.0, 0.0);
       }   	
-      
+**/ 
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
       // NOTE: DO NOT REMOVE CODE BELOW THIS LINE
@@ -256,8 +261,8 @@ public:
   };
 
   // Tunable motion controller parameters
-  const static double FORWARD_SPEED_MPS = 2.0;
-  const static double ROTATE_SPEED_RADPS = M_PI/2;
+  const static double FORWARD_SPEED_MPS = 0.4;
+  const static double ROTATE_SPEED_RADPS = M_PI/6;
   
   const static int SPIN_RATE_HZ = 30; 
   
@@ -275,6 +280,8 @@ protected:
   //my code for turning laser scans into point clouds
   laser_geometry::LaserProjection projection;
   sensor_msgs::PointCloud ptcld;
+  //adding timer for printing occupancy grid to a img file every 30 sec.
+  ros::WallTimer timeGrid;
   
  
   double x; // in simulated Stage units, + = East/right
