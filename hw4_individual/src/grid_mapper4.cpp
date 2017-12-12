@@ -46,7 +46,7 @@ public:
       &GridMapper::poseCallback, this);
       
     // Create resizeable named window
-    cv::namedWindow("Occupancy Grid Canvas", \
+  //  cv::namedWindow("Occupancy Grid Canvas", \
       CV_WINDOW_NORMAL | CV_WINDOW_KEEPRATIO | CV_GUI_EXPANDED); 
       
       //the timer performs the callback function for printing the occupancy grid to an img file every 30 sec
@@ -252,7 +252,7 @@ public:
 //:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
       // NOTE: DO NOT REMOVE CODE BELOW THIS LINE
-      cv::imshow("Occupancy Grid Canvas", canvas);
+      //cv::imshow("Occupancy Grid Canvas", canvas);
       ros::spinOnce(); // Need to call this function often to allow ROS to process incoming messages
       
     }
